@@ -25,6 +25,10 @@ Display *dpy;
 Window win[1024];
 int winn=0;
 
+int on_error(Display *d, XErrorEvent *e) {
+	printf("ERROR\n");
+	return 0;
+}
 
 void better_place(Window w,XWindowChanges *wc) {
 	XClassHint h;
@@ -35,12 +39,16 @@ void better_place(Window w,XWindowChanges *wc) {
 	if(strcmp(h.res_class,"Pidgin")==0) {
 		wc->x=1600-256;
 		wc->width=256;
+
+		XTextProperty p;
+		XGetTextProperty(dpy,w, &p, XInternAtom(dpy,"WM_WINDOW_ROLE",False));
+		printf("TYPE: %s\n", p.value);
+		XFree(p.value);
 	}
 
 
 	XFree(h.res_name);
 	XFree(h.res_class);
-
 }
 
 
@@ -52,41 +60,16 @@ int is_transient(Window w) {
 
 void put_in_place_transient(Window w, XConfigureRequestEvent *e) {
 	XWindowChanges wc={.x=e->x,.y=e->y,.width=e->width,.height=e->height,.border_width=0};
-	XConfigureWindow(dpy,w,e->value_mask|CWBorderWidth,&wc);
-
-        XConfigureRequestEvent  cr;
-
-        bzero(&cr, sizeof cr);
-        cr.type = ConfigureRequest;
-        cr.display = dpy;
-        cr.parent = w;
-        cr.window = w;
-        cr.x = e->x;
-        cr.y = e->y;
-        cr.width = e->width;
-        cr.height = e->height;
-        cr.border_width = 0;
-
-        XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)&cr);
+	XConfigureWindow(dpy,w,e->value_mask,&wc);
+        XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)e);
 
 	printf("put in place transient\n");
 }
 
 void put_in_place_transient_again(Window w, XConfigureRequestEvent *e) {
-        XConfigureEvent         ce;
-
-        ce.type = ConfigureNotify;
-        ce.display = dpy;
-        ce.event = w;
-        ce.window = w;
-        ce.x = e->x;
-        ce.y = e->y;
-        ce.width = e->width;
-        ce.height = e->height;
-        ce.border_width = 0;
-        ce.above = None;
-        ce.override_redirect = False;
-        XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)&ce);
+	XWindowChanges wc={.x=e->x,.y=e->y,.width=e->width,.height=e->height,.border_width=0};
+	XConfigureWindow(dpy,w,e->value_mask,&wc);
+        XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)e);
 
 	printf("put in place again transient\n");
 }
@@ -104,10 +87,10 @@ void put_in_place(Window w)
         cr.display = dpy;
         cr.parent = w;
         cr.window = w;
-        cr.x = 256;
-        cr.y = 64;
-        cr.width = 1024;
-        cr.height = 760;
+        cr.x = wc.x;
+        cr.y = wc.y;
+        cr.width = wc.width;
+        cr.height = wc.height;
         cr.border_width = 0;
 
         XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)&cr);
@@ -118,16 +101,20 @@ void put_in_place(Window w)
 }
 
 void put_in_place_again(Window w) {
+	XWindowChanges wc={.x=256,.y=64,.width=1024,.height=760,.border_width=0};
+	better_place(w,&wc);
+	XConfigureWindow(dpy,w,CWX|CWY|CWWidth|CWHeight|CWBorderWidth,&wc);
+
         XConfigureEvent         ce;
 
         ce.type = ConfigureNotify;
         ce.display = dpy;
         ce.event = w;
         ce.window = w;
-        ce.x = 256;
-        ce.y = 64;
-        ce.width = 1024;
-        ce.height = 760;
+        ce.x = wc.x;
+        ce.y = wc.y;
+        ce.width = wc.width;
+        ce.height = wc.height;
         ce.border_width = 0;
         ce.above = None;
         ce.override_redirect = False;
@@ -148,12 +135,7 @@ int main(int argc, char *argv[])
 
     root = DefaultRootWindow(dpy);
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod4Mask, root,
-            True, GrabModeAsync, GrabModeAsync);
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F2")), Mod4Mask, root,
-            True, GrabModeAsync, GrabModeAsync);
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Return")), Mod4Mask, root,
-            True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, AnyKey, Mod4Mask, root, True, GrabModeAsync, GrabModeAsync);
     XGrabButton(dpy, 1, Mod4Mask, root, True, ButtonPressMask, GrabModeAsync,
             GrabModeAsync, None, None);
     XGrabButton(dpy, 3, Mod4Mask, root, True, ButtonPressMask, GrabModeAsync,
@@ -164,20 +146,23 @@ int main(int argc, char *argv[])
     XSelectInput(dpy, root, SubstructureRedirectMask);
     XSync(dpy, False);
 
+    // XSetErrorHandler(on_error);
 
     for(;;)
     {
         XNextEvent(dpy, &ev);
 	dumpevent(&ev);
-        if(ev.type == KeyPress && ev.xkey.subwindow != None)
+        if(ev.type == KeyPress && ev.xkey.subwindow != None) {
 		if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("F1"))) {
             		XRaiseWindow(dpy, ev.xkey.subwindow);
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("Return"))) {
             		system("gnome-terminal");
-		} else {
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("p"))) {
+            		system("dmenu_run&");
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("r"))) {
 			execl(argv[0],argv[0],NULL);
 		}
-        else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
+        } else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
         {
             XGrabPointer(dpy, ev.xbutton.subwindow, True,
                     PointerMotionMask|ButtonReleaseMask, GrabModeAsync,

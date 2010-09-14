@@ -8,7 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <X11/cursorfont.h>
+#include <X11/keysym.h>
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
+#include <X11/Xproto.h>
+#include <X11/Xutil.h>
+
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -18,6 +24,24 @@ Display *dpy;
 
 Window win[1024];
 int winn=0;
+
+
+void better_place(Window w,XWindowChanges *wc) {
+	XClassHint h;
+	XGetClassHint(dpy,w,&h);
+
+	printf("name: %s class %s\n",h.res_name,h.res_class);
+
+	if(strcmp(h.res_class,"Pidgin")==0) {
+		wc->x=1600-256;
+		wc->width=256;
+	}
+
+
+	XFree(h.res_name);
+	XFree(h.res_class);
+
+}
 
 
 int is_transient(Window w) {
@@ -70,6 +94,7 @@ void put_in_place_transient_again(Window w, XConfigureRequestEvent *e) {
 void put_in_place(Window w)
 {
 	XWindowChanges wc={.x=256,.y=64,.width=1024,.height=760,.border_width=0};
+	better_place(w,&wc);
 	XConfigureWindow(dpy,w,CWX|CWY|CWWidth|CWHeight|CWBorderWidth,&wc);
 
         XConfigureRequestEvent  cr;
@@ -86,6 +111,8 @@ void put_in_place(Window w)
         cr.border_width = 0;
 
         XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)&cr);
+
+        XSelectInput(dpy,w,EnterWindowMask | FocusChangeMask | PropertyChangeMask | StructureNotifyMask);
 
 	printf("put in place\n");
 }
@@ -173,6 +200,9 @@ int main(int argc, char *argv[])
 			win[winn++]=ev.xconfigurerequest.window;
 		}
         } else if(ev.type == MapRequest) {
+		XMapRaised(dpy,ev.xmaprequest.window);
+        } else if(ev.type == EnterNotify) {
+		XSetInputFocus(dpy, ev.xcrossing.window, RevertToParent, CurrentTime);
 		XMapRaised(dpy,ev.xmaprequest.window);
 	} else if(ev.type == MotionNotify)
         {

@@ -22,6 +22,8 @@ void dumpevent(XEvent *);
 
 Display *dpy;
 
+Window firefox=0,terminal=0;
+
 Window win[1024];
 int winn=0;
 
@@ -29,6 +31,9 @@ int on_error(Display *d, XErrorEvent *e) {
 	printf("ERROR\n");
 	return 0;
 }
+
+void ignore_errors() { XSetErrorHandler(on_error); }
+void restore_errors() { XSetErrorHandler(NULL); }
 
 void closewindow() {
         XClientMessageEvent     cm;
@@ -44,20 +49,25 @@ void closewindow() {
         XSendEvent(dpy, cm.window, False, 0L, (XEvent *)&cm);
 }
 
+int is_role(Window w, char *role) {
+	XTextProperty p;
+	XGetTextProperty(dpy,w, &p, XInternAtom(dpy,"WM_WINDOW_ROLE",False));
+	if(!p.value) return 0;
+	printf("ROLE: %s\n", p.value);
+	int ret=(strcmp(role,(char*)p.value));
+	XFree(p.value);
+	return ret;
+}
+
 void better_place(Window w,XWindowChanges *wc) {
 	XClassHint h;
 	XGetClassHint(dpy,w,&h);
-
 	printf("name: %s class %s\n",h.res_name,h.res_class);
 
 	if(strcmp(h.res_class,"Pidgin")==0) {
 		wc->x=1600-256;
 		wc->width=256;
 
-		XTextProperty p;
-		XGetTextProperty(dpy,w, &p, XInternAtom(dpy,"WM_WINDOW_ROLE",False));
-		printf("TYPE: %s\n", p.value);
-		XFree(p.value);
 	}
 
 
@@ -88,6 +98,8 @@ void put_in_place_transient_again(Window w, XConfigureRequestEvent *e) {
 	printf("put in place again transient\n");
 }
 
+void takeover(Window w);
+
 void put_in_place(Window w)
 {
 	XWindowChanges wc={.x=256,.y=64,.width=1024,.height=760,.border_width=0};
@@ -108,8 +120,6 @@ void put_in_place(Window w)
         cr.border_width = 0;
 
         XSendEvent(dpy, w, False, StructureNotifyMask, (XEvent *)&cr);
-
-        XSelectInput(dpy,w,EnterWindowMask | FocusChangeMask | PropertyChangeMask | StructureNotifyMask);
 
 	printf("put in place\n");
 }
@@ -137,6 +147,51 @@ void put_in_place_again(Window w) {
 	printf("put in place again\n");
 }
 
+int is_name(Window w,char *name) {
+	XClassHint h;
+	int ret=0;
+	if(XGetClassHint(dpy,w,&h)) {
+		ret=(strcmp(name,h.res_name)==0);
+		printf("name %s\n",h.res_name);
+		XFree(h.res_name); XFree(h.res_class);
+	}
+	return ret;
+}
+
+int is_class(Window w,char *class) {
+	XClassHint h;
+	int ret=0;
+	if(XGetClassHint(dpy,w,&h)) {
+		ret=(strcmp(class,h.res_class)==0);
+		printf("class %s\n",h.res_class);
+		XFree(h.res_name); XFree(h.res_class);
+	}
+	return ret;
+}
+
+int is_viewable(Window w) {
+	XWindowAttributes a;
+	XGetWindowAttributes(dpy,w,&a);
+	return a.map_state == IsViewable;
+}
+
+void takeover(Window w) {
+	printf("\ntakeover %x\n",(unsigned int)w);
+       	XSelectInput(dpy,w,EnterWindowMask | FocusChangeMask | PropertyChangeMask | StructureNotifyMask);
+	if(is_class(w,"Firefox")&&is_viewable(w)) { firefox=w; printf("found firefox\n"); }
+	else if(is_name(w,"gnome-terminal")&&is_viewable(w)) { terminal=w; printf("found terminal\n"); }
+}
+
+void takeover_existing() {
+	Window r;
+	Window *w;
+	unsigned int n;
+	XQueryTree(dpy,DefaultRootWindow(dpy),&r,&r,&w,&n);
+	int i;
+	for(i=0;i<n;i++) { takeover(w[i]); }
+	XFree(w);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -160,10 +215,12 @@ int main(int argc, char *argv[])
     XSelectInput(dpy, root, SubstructureRedirectMask);
     XSync(dpy, False);
 
-    // XSetErrorHandler(on_error);
+    takeover_existing();
 
+    ignore_errors();
     for(;;)
     {
+	XSync(dpy,False);
         XNextEvent(dpy, &ev);
 	dumpevent(&ev);
         if(ev.type == KeyPress && ev.xkey.subwindow != None) {
@@ -175,49 +232,68 @@ int main(int argc, char *argv[])
             		system("dmenu_run&");
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("x"))) {
             		closewindow();
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("1"))) {
+			if(firefox) {
+				XSetInputFocus(dpy,firefox,RevertToParent,CurrentTime);
+				XMapRaised(dpy,firefox);
+			} else {
+				system("firefox&");
+			}
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("2"))) {
+			if(terminal) {
+				XSetInputFocus(dpy,terminal,RevertToParent,CurrentTime);
+				XMapRaised(dpy,terminal);
+			} else {
+				system("gnome-terminal&");
+			}
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("r"))) {
 			execl(argv[0],argv[0],NULL);
 		}
-        } else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
-        {
-            XGrabPointer(dpy, ev.xbutton.subwindow, True,
-                    PointerMotionMask|ButtonReleaseMask, GrabModeAsync,
-                    GrabModeAsync, None, None, CurrentTime);
-            XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
-            start = ev.xbutton;
-        } else if(ev.type == ConfigureRequest) {
-		int i=0; for(i=0;i<winn;i++) {
-			if(ev.xconfigurerequest.window==win[i]) {
-				if(is_transient(ev.xconfigurerequest.window))
-					put_in_place_transient_again(ev.xconfigurerequest.window,&ev.xconfigurerequest);
-				else put_in_place_again(ev.xconfigurerequest.window);
-				break;
+		} else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
+		{
+		    XGrabPointer(dpy, ev.xbutton.subwindow, True,
+			    PointerMotionMask|ButtonReleaseMask, GrabModeAsync,
+			    GrabModeAsync, None, None, CurrentTime);
+		    XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
+		    start = ev.xbutton;
+		} else if(ev.type == ConfigureRequest) {
+			int i=0; for(i=0;i<winn;i++) {
+				if(ev.xconfigurerequest.window==win[i]) {
+					if(is_transient(ev.xconfigurerequest.window))
+						put_in_place_transient_again(ev.xconfigurerequest.window,&ev.xconfigurerequest);
+					else put_in_place_again(ev.xconfigurerequest.window);
+					break;
+				}
 			}
+			if(i==winn) {
+				if(is_transient(ev.xconfigurerequest.window))
+					put_in_place_transient(ev.xconfigurerequest.window,&ev.xconfigurerequest);
+				else put_in_place(ev.xconfigurerequest.window);
+				win[winn++]=ev.xconfigurerequest.window;
+			}
+		} else if(ev.type == MapRequest) {
+			XMapRaised(dpy,ev.xmaprequest.window);
+			takeover(ev.xmaprequest.window);
+		} else if(ev.type == UnmapNotify) {
+			if(ev.xunmap.window==firefox) firefox=0;
+			if(ev.xunmap.window==terminal) terminal=0;
+		} else if(ev.type == EnterNotify) {
+			printf("enternotify %x\n",(unsigned int)ev.xcrossing.window);
+			XSetInputFocus(dpy, ev.xcrossing.window, RevertToParent, CurrentTime);
+			printf("ok\n");
+		} else if(ev.type == MotionNotify)
+		{
+		    int xdiff, ydiff;
+		    while(XCheckTypedEvent(dpy, MotionNotify, &ev));
+		    xdiff = ev.xbutton.x_root - start.x_root;
+		    ydiff = ev.xbutton.y_root - start.y_root;
+		    XMoveResizeWindow(dpy, ev.xmotion.window,
+			attr.x + (start.button==1 ? xdiff : 0),
+			attr.y + (start.button==1 ? ydiff : 0),
+			MAX(1, attr.width + (start.button==3 ? xdiff : 0)),
+			MAX(1, attr.height + (start.button==3 ? ydiff : 0)));
 		}
-		if(i==winn) {
-			if(is_transient(ev.xconfigurerequest.window))
-				put_in_place_transient(ev.xconfigurerequest.window,&ev.xconfigurerequest);
-			else put_in_place(ev.xconfigurerequest.window);
-			win[winn++]=ev.xconfigurerequest.window;
-		}
-        } else if(ev.type == MapRequest) {
-		XMapRaised(dpy,ev.xmaprequest.window);
-        } else if(ev.type == EnterNotify) {
-		XSetInputFocus(dpy, ev.xcrossing.window, RevertToParent, CurrentTime);
-		XMapRaised(dpy,ev.xmaprequest.window);
-	} else if(ev.type == MotionNotify)
-        {
-            int xdiff, ydiff;
-            while(XCheckTypedEvent(dpy, MotionNotify, &ev));
-            xdiff = ev.xbutton.x_root - start.x_root;
-            ydiff = ev.xbutton.y_root - start.y_root;
-            XMoveResizeWindow(dpy, ev.xmotion.window,
-                attr.x + (start.button==1 ? xdiff : 0),
-                attr.y + (start.button==1 ? ydiff : 0),
-                MAX(1, attr.width + (start.button==3 ? xdiff : 0)),
-                MAX(1, attr.height + (start.button==3 ? ydiff : 0)));
-        }
-        else if(ev.type == ButtonRelease)
-            XUngrabPointer(dpy, CurrentTime);
-    }
+		else if(ev.type == ButtonRelease)
+		    XUngrabPointer(dpy, CurrentTime);
+	    }
 }

@@ -1,4 +1,4 @@
-CFLAGS=-Wall
+CFLAGS=-Wall -g
 LDLIBS=-lX11
 
 all: wm

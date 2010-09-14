@@ -30,6 +30,20 @@ int on_error(Display *d, XErrorEvent *e) {
 	return 0;
 }
 
+void closewindow() {
+        XClientMessageEvent     cm;
+
+        bzero(&cm, sizeof cm);
+        cm.type = ClientMessage;
+	int back;
+	XGetInputFocus(dpy,&cm.window,&back);
+        cm.message_type = XInternAtom(dpy, "WM_PROTOCOLS", False);
+        cm.format = 32;
+        cm.data.l[0] = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+        cm.data.l[1] = CurrentTime;
+        XSendEvent(dpy, cm.window, False, 0L, (XEvent *)&cm);
+}
+
 void better_place(Window w,XWindowChanges *wc) {
 	XClassHint h;
 	XGetClassHint(dpy,w,&h);
@@ -159,6 +173,8 @@ int main(int argc, char *argv[])
             		system("gnome-terminal");
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("p"))) {
             		system("dmenu_run&");
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("x"))) {
+            		closewindow();
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("r"))) {
 			execl(argv[0],argv[0],NULL);
 		}

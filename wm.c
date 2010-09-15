@@ -22,7 +22,7 @@ void dumpevent(XEvent *);
 
 Display *dpy;
 
-Window firefox=0,terminal=0;
+Window firefox=0,terminal=0,pidgin=0;
 
 Window win[1024];
 int winn=0;
@@ -180,6 +180,7 @@ void takeover(Window w) {
        	XSelectInput(dpy,w,EnterWindowMask | FocusChangeMask | PropertyChangeMask | StructureNotifyMask);
 	if(is_class(w,"Firefox")&&is_viewable(w)) { firefox=w; printf("found firefox\n"); }
 	else if(is_name(w,"gnome-terminal")&&is_viewable(w)) { terminal=w; printf("found terminal\n"); }
+	else if(is_class(w,"Pidgin")&&is_viewable(w)) { pidgin=w; printf("found pidgin\n"); }
 }
 
 void takeover_existing() {
@@ -222,7 +223,7 @@ int main(int argc, char *argv[])
     {
 	XSync(dpy,False);
         XNextEvent(dpy, &ev);
-	dumpevent(&ev);
+	//dumpevent(&ev);
         if(ev.type == KeyPress && ev.xkey.subwindow != None) {
 		if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("F1"))) {
             		XRaiseWindow(dpy, ev.xkey.subwindow);
@@ -232,25 +233,34 @@ int main(int argc, char *argv[])
             		system("dmenu_run&");
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("x"))) {
             		closewindow();
-		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("1"))) {
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("2"))) {
 			if(firefox) {
 				XSetInputFocus(dpy,firefox,RevertToParent,CurrentTime);
 				XMapRaised(dpy,firefox);
 			} else {
-				system("firefox&");
+				system("pidof firefox-bin || firefox&");
 			}
-		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("2"))) {
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("1"))) {
 			if(terminal) {
 				XSetInputFocus(dpy,terminal,RevertToParent,CurrentTime);
 				XMapRaised(dpy,terminal);
 			} else {
-				system("gnome-terminal&");
+				system("pidof gnome-terminal || gnome-terminal&");
+			}
+		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("0"))) {
+			if(pidgin) {
+				XSetInputFocus(dpy,pidgin,RevertToParent,CurrentTime);
+				XMapRaised(dpy,pidgin);
+			} else {
+				system("pidof pidgin || pidgin&");
 			}
 		} else if(ev.xkey.keycode==XKeysymToKeycode(dpy, XStringToKeysym("r"))) {
 			execl(argv[0],argv[0],NULL);
 		}
 		} else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
 		{
+			XSetInputFocus(dpy,ev.xbutton.subwindow,RevertToParent,CurrentTime);
+			XMapRaised(dpy,ev.xbutton.subwindow);
 		    XGrabPointer(dpy, ev.xbutton.subwindow, True,
 			    PointerMotionMask|ButtonReleaseMask, GrabModeAsync,
 			    GrabModeAsync, None, None, CurrentTime);
@@ -274,13 +284,16 @@ int main(int argc, char *argv[])
 		} else if(ev.type == MapRequest) {
 			XMapRaised(dpy,ev.xmaprequest.window);
 			takeover(ev.xmaprequest.window);
+			XSetInputFocus(dpy,ev.xmaprequest.window,RevertToParent,CurrentTime);
 		} else if(ev.type == UnmapNotify) {
 			if(ev.xunmap.window==firefox) firefox=0;
 			if(ev.xunmap.window==terminal) terminal=0;
+			if(ev.xunmap.window==pidgin) pidgin=0;
+			takeover_existing();
 		} else if(ev.type == EnterNotify) {
-			printf("enternotify %x\n",(unsigned int)ev.xcrossing.window);
-			XSetInputFocus(dpy, ev.xcrossing.window, RevertToParent, CurrentTime);
-			printf("ok\n");
+			//printf("enternotify %x\n",(unsigned int)ev.xcrossing.window);
+			//XSetInputFocus(dpy, ev.xcrossing.window, RevertToParent, CurrentTime);
+			//printf("ok\n");
 		} else if(ev.type == MotionNotify)
 		{
 		    int xdiff, ydiff;

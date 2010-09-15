@@ -43,40 +43,19 @@ void unmanage(xcb_window_t w) {
 	printf("unmanaging "); printclassname(w);
 }
 
-void configure_request_window(xcb_configure_request_event_t *e) {
-    uint16_t m = 0;
-    uint32_t v[7];
-    unsigned short i = 0;
-
-    if(e->value_mask & XCB_CONFIG_WINDOW_X) { m |= XCB_CONFIG_WINDOW_X; v[i++] = e->x; }
-    if(e->value_mask & XCB_CONFIG_WINDOW_Y) { m |= XCB_CONFIG_WINDOW_Y; v[i++] = e->y; }
-    if(e->value_mask & XCB_CONFIG_WINDOW_WIDTH) { m |= XCB_CONFIG_WINDOW_WIDTH; v[i++] = e->width; }
-    if(e->value_mask & XCB_CONFIG_WINDOW_HEIGHT) { m |= XCB_CONFIG_WINDOW_HEIGHT; v[i++] = e->height; }
-    if(e->value_mask & XCB_CONFIG_WINDOW_BORDER_WIDTH) { m |= XCB_CONFIG_WINDOW_BORDER_WIDTH; v[i++] = e->border_width; }
-    if(e->value_mask & XCB_CONFIG_WINDOW_SIBLING) { m |= XCB_CONFIG_WINDOW_SIBLING; v[i++] = e->sibling; }
-    if(e->value_mask & XCB_CONFIG_WINDOW_STACK_MODE) { m |= XCB_CONFIG_WINDOW_STACK_MODE; v[i++] = e->stack_mode; }
-
-    xcb_configure_window(c,e->window,m,v);
-}
+void resize(xcb_window_t w) {
+	printf("resizing 0x%x\n",w);
+	uint32_t v[]={256,64,1024,760,1};
+	xcb_configure_window(c,w,XCB_CONFIG_WINDOW_X|XCB_CONFIG_WINDOW_Y
+				|XCB_CONFIG_WINDOW_WIDTH|XCB_CONFIG_WINDOW_HEIGHT
+				|XCB_CONFIG_WINDOW_BORDER_WIDTH,
+				v);
+	}
 
 void configure_request(xcb_generic_event_t *e0) {
+	printf("configure_request\n");
 	xcb_configure_request_event_t *e=(xcb_configure_request_event_t*)e0;
-
-	if(is_managed(e->window)) {
-		xcb_configure_notify_event_t ce;
-		ce.response_type = XCB_CONFIGURE_NOTIFY;
-		ce.event = e->window;
-		ce.window = e->window;
-		ce.x = e->x;
-		ce.y = e->y;
-		ce.width = e->width;
-		ce.height = e->height;
-		ce.border_width = 1;
-		ce.above_sibling = XCB_NONE;
-		ce.override_redirect = 0;
-		xcb_send_event(c,0,e->window,XCB_EVENT_MASK_STRUCTURE_NOTIFY,(char*)&ce);
-	    }
-	    else configure_request_window(e);
+	resize(e->window);
 }
 
 xcb_get_window_attributes_reply_t *getwinattr(xcb_window_t w) {
@@ -88,15 +67,20 @@ xcb_get_window_attributes_reply_t *getwinattr(xcb_window_t w) {
 }
 
 void map_request(xcb_generic_event_t *e0) {
+	printf("map_request\n");
 	xcb_map_request_event_t *e=(xcb_map_request_event_t*)e0;
 	xcb_get_window_attributes_reply_t *a=getwinattr(e->window);
 	if(!a) return;
-    	if(!a->override_redirect)
+    	if(!a->override_redirect) {
+		resize(e->window);
 		xcb_map_window(c,e->window);
+		manage(e->window);
+	}
 	free(a);
 }
 
 void unmap_notify(xcb_generic_event_t *e0) {
+	printf("unmap_notify\n");
 	xcb_unmap_notify_event_t *e=(xcb_unmap_notify_event_t*)e0;
 	unmanage(e->window);
 }
@@ -128,6 +112,9 @@ void manage_existing() {
 		if(a->map_state!=XCB_MAP_STATE_VIEWABLE) continue;
 
 		manage(wins[i]);
+		xcb_unmap_window(c,wins[i]);
+		resize(wins[i]);
+		xcb_map_window(c,wins[i]);
 	}
 }
 
@@ -149,7 +136,7 @@ int main() {
 	while((e=xcb_wait_for_event(c))) {
 		switch (e->response_type & ~0x80) {
 		case XCB_CONFIGURE_REQUEST: configure_request(e); break;
-		case XCB_MAP_REQUEST: configure_request(e); break;
+		case XCB_MAP_REQUEST: map_request(e); break;
 		case XCB_UNMAP_NOTIFY: unmap_notify(e); break;
 		case XCB_KEY_PRESS: key_press(e); break;
 		}

@@ -1,6 +1,8 @@
 CFLAGS=-Wall -g
-LDLIBS=-lX11
+LDLIBS=-lxcb -lxcb-icccm
 
-all: wm
+all: wm wm2
 
 wm: wm.o dumpevent.o
+wm2: wm2.o
+

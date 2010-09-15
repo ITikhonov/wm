@@ -189,7 +189,7 @@ void takeover_existing() {
 	unsigned int n;
 	XQueryTree(dpy,DefaultRootWindow(dpy),&r,&r,&w,&n);
 	int i;
-	for(i=0;i<n;i++) { takeover(w[i]); }
+	for(i=0;i<n;i++) { if(is_viewable(w[i])) takeover(w[i]); }
 	XFree(w);
 }
 

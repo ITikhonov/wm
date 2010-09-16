@@ -110,6 +110,9 @@ void better_size(xcb_window_t w,uint32_t sz[4]) {
 	}
 }
 
+void update_ewmh_list() {
+    xcb_change_property(c,XCB_PROP_MODE_REPLACE,s->root,xcb_atom_get(c, "_NET_CLIENT_LIST"),XCB_ATOM_WINDOW,32,wn,m);
+}
 
 void resize(xcb_window_t w) {
 	uint32_t v[]={256,64,1024,760};
@@ -150,7 +153,7 @@ void configure_request(xcb_generic_event_t *e0) {
 		e->stack_mode,e->x,e->y,e->width,e->height,e->value_mask);
 
 	configure_asis(e0);
-	if(!is_transient(e->window)) resize(e->window);
+	if(!is_transient(e->window) && !is_classname(e->window,"fbpanel",0)) resize(e->window);
 	xcb_aux_sync(c);
 }
 
@@ -199,10 +202,10 @@ void map_request(xcb_generic_event_t *e0) {
 		const uint32_t v[1] = {XCB_EVENT_MASK_FOCUS_CHANGE};
 		xcb_change_window_attributes(c,e->window,XCB_CW_EVENT_MASK,v);
 		manage(e->window);
-		if(!is_transient(e->window)) resize(e->window);
+		if(!is_transient(e->window) && !is_classname(e->window,"fbpanel",0)) resize(e->window);
 		setnormal(e->window);
 		xcb_map_window(c,e->window);
-		show(e->window);
+		update_ewmh_list();
 	}
 	free(a);
 }
@@ -211,12 +214,14 @@ void unmap_notify(xcb_generic_event_t *e0) {
 	printf("unmap_notify\n");
 	xcb_unmap_notify_event_t *e=(xcb_unmap_notify_event_t*)e0;
 	unmanage(e->window);
+	update_ewmh_list();
 }
 
 void destroy_notify(xcb_generic_event_t *e0) {
 	printf("destroy\n");
 	xcb_destroy_notify_event_t *e=(xcb_destroy_notify_event_t*)e0;
 	unmanage(e->window);
+	update_ewmh_list();
 }
 
 
@@ -242,6 +247,7 @@ void enter_notify(xcb_generic_event_t *e0) {
 	show(e->event);
 }
 
+
 void manage_existing() {
 	xcb_query_tree_cookie_t cookie=xcb_query_tree_unchecked(c,s->root);
 	xcb_query_tree_reply_t *r=xcb_query_tree_reply(c,cookie,NULL);
@@ -263,12 +269,15 @@ void manage_existing() {
 		manage(wins[i]);
 		printf("remapped\n");
 
+
+
 		xcb_map_window(c,wins[i]);
 	}
 
 	xcb_aux_sync(c);
 	wc=0;
 	if(wn>0) { show(m[wc]); }
+	update_ewmh_list();
 }
 
 #define ERRORS_NBR              256

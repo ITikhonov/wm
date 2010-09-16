@@ -1,5 +1,5 @@
 CFLAGS=-Wall -g -Werror
-LDLIBS=-lxcb -lxcb-icccm -lxcb-aux
+LDLIBS=-lxcb -lxcb-icccm -lxcb-aux -lxcb-keysyms
 
 all: wm wm2 hello
 

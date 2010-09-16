@@ -181,7 +181,9 @@ void focus(xcb_generic_event_t *e0, int gain) {
 		uint32_t b[]={1};
 		xcb_configure_window(c,e->event,XCB_CONFIG_WINDOW_BORDER_WIDTH,b);
 	} else {
-		uint32_t b[]={0};
+		uint32_t color[]={0xffffffff};
+		xcb_change_window_attributes(c,e->event,XCB_CW_BORDER_PIXEL, color);
+		uint32_t b[]={1};
 		xcb_configure_window(c,e->event,XCB_CONFIG_WINDOW_BORDER_WIDTH,b);
 	}
 	xcb_aux_sync(c);
@@ -196,7 +198,6 @@ void map_request(xcb_generic_event_t *e0) {
 
 		const uint32_t v[1] = {XCB_EVENT_MASK_FOCUS_CHANGE};
 		xcb_change_window_attributes(c,e->window,XCB_CW_EVENT_MASK,v);
-
 		manage(e->window);
 		if(!is_transient(e->window)) resize(e->window);
 		setnormal(e->window);
@@ -236,6 +237,11 @@ void key_press(xcb_generic_event_t *e0) {
 	}
 }
 
+void enter_notify(xcb_generic_event_t *e0) {
+	xcb_enter_notify_event_t *e=(xcb_enter_notify_event_t*)e0;
+	show(e->event);
+}
+
 void manage_existing() {
 	xcb_query_tree_cookie_t cookie=xcb_query_tree_unchecked(c,s->root);
 	xcb_query_tree_reply_t *r=xcb_query_tree_reply(c,cookie,NULL);
@@ -249,10 +255,9 @@ void manage_existing() {
 		if(a->override_redirect) continue;
 		if(a->map_state!=XCB_MAP_STATE_VIEWABLE) continue;
 
-		const uint32_t v[1] = {XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT|XCB_EVENT_MASK_FOCUS_CHANGE};
+		const uint32_t v[1] = {XCB_EVENT_MASK_FOCUS_CHANGE|XCB_EVENT_MASK_ENTER_WINDOW};
 		xcb_change_window_attributes(c,wins[i],XCB_CW_EVENT_MASK,v);
 
-		show(wins[i]);
 		resize(wins[i]);
 		setnormal(wins[i]);
 		manage(wins[i]);
@@ -318,6 +323,7 @@ int main() {
 		case XCB_DESTROY_NOTIFY: destroy_notify(e); break;
 		case XCB_FOCUS_IN: focus(e,1); break;
 		case XCB_FOCUS_OUT: focus(e,0); break;
+		case XCB_ENTER_NOTIFY: enter_notify(e); break;
 		default:
 			printf("unhandled %u (0x%x)\n",e->response_type & ~0x80,e->response_type & ~0x80);
 		}

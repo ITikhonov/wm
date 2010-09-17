@@ -225,6 +225,12 @@ void map_request(xcb_generic_event_t *e0) {
 		manage(e->window);
 		if(!is_transient(e->window) && !is_classname(e->window,"fbpanel",0)) resize(e->window);
 		setnormal(e->window);
+
+		uint32_t color[]={0xffffffff};
+		xcb_change_window_attributes(c,e->window,XCB_CW_BORDER_PIXEL, color);
+		uint32_t b[]={1};
+		xcb_configure_window(c,e->window,XCB_CONFIG_WINDOW_BORDER_WIDTH,b);
+
 		xcb_map_window(c,e->window);
 		update_ewmh_list();
 	}

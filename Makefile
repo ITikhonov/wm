@@ -1,7 +1,7 @@
 CFLAGS=-Wall -g -Werror
 LDLIBS=-lxcb -lxcb-icccm -lxcb-aux -lxcb-keysyms
 
-all: wm wm2 hello
+all: wm wm2 hello wmlist
 
 wm: LDLIBS=-lX11
 wm: wm.o dumpevent.o

@@ -107,11 +107,15 @@ void better_size(xcb_window_t w,uint32_t sz[4]) {
 	if(is_classname(w,"Pidgin",0)) {
 		sz[0]=1600-256;
 		sz[2]=256;
+	} else if(is_classname(w,"wmlist",0)) {
+		sz[0]=64;
+		sz[2]=128;
 	}
 }
 
 void update_ewmh_list() {
-    xcb_change_property(c,XCB_PROP_MODE_REPLACE,s->root,xcb_atom_get(c, "_NET_CLIENT_LIST"),XCB_ATOM_WINDOW,32,wn,m);
+	xcb_change_property(c,XCB_PROP_MODE_REPLACE,s->root,xcb_atom_get(c, "_NET_CLIENT_LIST"),XCB_ATOM_WINDOW,32,wn,m);
+	xcb_flush(c);
 }
 
 void resize(xcb_window_t w) {
@@ -139,7 +143,25 @@ void configure_asis(xcb_generic_event_t *e0) {
 	xcb_configure_window(c,e->window,m,v);
 }
 
+
+xcb_atom_t get_wm_type(xcb_window_t w) {
+        xcb_get_property_cookie_t cookie=xcb_get_property(c,0,w,xcb_atom_get(c,"_NET_WM_WINDOW_TYPE"),XCB_ATOM_ATOM,0,1);
+        xcb_get_property_reply_t *reply = xcb_get_property_reply(c,cookie,NULL);
+	xcb_atom_t r=XCB_ATOM_NONE;
+        if(reply) {
+		if(xcb_get_property_value_length(reply)) {
+                	r=*(xcb_atom_t *)xcb_get_property_value(reply);
+		}
+                free(reply);
+        }
+        return r;
+}
+
 int is_transient(xcb_window_t w) {
+	if(get_wm_type(w)==xcb_atom_get(c,"_NET_WM_WINDOW_TYPE_DIALOG")) {
+		return 1;
+	}
+
 	xcb_window_t t=0;
 	xcb_get_wm_transient_for_reply(c,xcb_get_wm_transient_for(c,w),&t,NULL);
 	return t;
@@ -198,8 +220,7 @@ void map_request(xcb_generic_event_t *e0) {
 	xcb_get_window_attributes_reply_t *a=getwinattr(e->window);
 	if(!a) return;
     	if(!a->override_redirect) {
-
-		const uint32_t v[1] = {XCB_EVENT_MASK_FOCUS_CHANGE};
+		const uint32_t v[1] = {XCB_EVENT_MASK_FOCUS_CHANGE|XCB_EVENT_MASK_ENTER_WINDOW};
 		xcb_change_window_attributes(c,e->window,XCB_CW_EVENT_MASK,v);
 		manage(e->window);
 		if(!is_transient(e->window) && !is_classname(e->window,"fbpanel",0)) resize(e->window);

@@ -18,9 +18,20 @@ xcb_connection_t *c;
 xcb_window_t m[1024];
 int wn=0;
 int wc=0;
+int wsel=0;
 
 int firefox=0;
 int terminal=0;
+int pidgin=0;
+
+xcb_window_t getinputfocus() {
+	xcb_get_input_focus_cookie_t k=xcb_get_input_focus(c);
+	xcb_get_input_focus_reply_t *r=xcb_get_input_focus_reply(c,k,0);
+	xcb_window_t w=r->focus;
+	free(r);
+	return w;
+
+}
 
 void system2(char *s)
 {
@@ -191,12 +202,13 @@ xcb_get_window_attributes_reply_t *getwinattr(xcb_window_t w) {
 }
 
 void show(xcb_window_t w) {
-	printf("switching to (0x%x)\n",w);
+	if(w!=firefox && w!=pidgin && w!=terminal) { wsel=w; }
+
+	printf("switching to 0x%x sel is 0x%x\n",w,wsel);
 	uint32_t v[1]={XCB_STACK_MODE_ABOVE};
 	xcb_configure_window(c,w,XCB_CONFIG_WINDOW_STACK_MODE,v);
 	xcb_set_input_focus(c,XCB_INPUT_FOCUS_PARENT,w,XCB_CURRENT_TIME);
 	xcb_aux_sync(c);
-
 }
 
 void shortcut(xcb_window_t w) {
@@ -204,6 +216,8 @@ void shortcut(xcb_window_t w) {
 		firefox=w;
 	} else if(is_classname(w,0,"gnome-terminal")) {
 		terminal=w;
+	} else if(is_classname(w,"Pidgin",0)) {
+		pidgin=w;
 	}
 }
 
@@ -249,11 +263,23 @@ void map_request(xcb_generic_event_t *e0) {
 	free(a);
 }
 
+void findpidgin() {
+	int i;
+	for(i=wn-1;i>=0;i--) {
+		if(is_classname(m[i],"Pidgin",0)) { pidgin=m[i]; return; }
+	}
+	pidgin=XCB_WINDOW_NONE;
+	return;
+}
+
 void unmap_notify(xcb_generic_event_t *e0) {
 	printf("unmap_notify\n");
 	xcb_unmap_notify_event_t *e=(xcb_unmap_notify_event_t*)e0;
 	unmanage(e->window);
 	update_ewmh_list();
+	if(e->window==firefox) firefox=0;
+	if(e->window==terminal) terminal=0;
+	if(e->window==pidgin) { findpidgin(); if(pidgin) show(pidgin); }
 }
 
 void destroy_notify(xcb_generic_event_t *e0) {
@@ -278,12 +304,16 @@ void key_press(xcb_generic_event_t *e0) {
 		printf("show terminal 0x%x\n",terminal);
 		show(terminal);
 	} else if(k==XK_2) {
-		printf("show firefox 0x%x\n",terminal);
+		printf("show firefox 0x%x\n",firefox);
 		show(firefox);
+	} else if(k==XK_0) {
+		printf("show pidgin 0x%x\n",pidgin);
+		show(pidgin);
 	} else if(k==XK_Tab) {
-		if(!wn) return;
-		wc++; if(wc>=wn) {wc=0;}
-		show(m[wc]);
+		show(wsel);
+		//if(!wn) return;
+		//wc++; if(wc>=wn) {wc=0;}
+		//show(m[wc]);
 	}
 }
 

@@ -7,19 +7,25 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_icccm.h>
+#include <xcb/xcb_aux.h>
 
 xcb_connection_t    *c;
 xcb_screen_t        *s;
 xcb_window_t         w;
-xcb_gcontext_t       g;
+xcb_gcontext_t       g,pg;
 
 void text(int x,int y,xcb_char2b_t *t,int n) {
 	xcb_image_text_16(c,n,w,g,x,y,t);
 }
 
+void textpidgin(int x,int y,xcb_char2b_t *t,int n) {
+	xcb_image_text_16(c,n,w,pg,x,y,t);
+}
+
 xcb_window_t m[256];
 xcb_char2b_t *names[256];
 int namel[256];
+int is_pidgin[256];
 int mn=0;
 
 int utf8_to_ucs2(uint8_t *input, int l, xcb_char2b_t *buf, int m) {
@@ -107,7 +113,7 @@ int makename(xcb_window_t w) {
 	if(is_classname(w,"wmlist",0)) {
 		return 0;
 	}
-
+	is_pidgin[mn]=is_classname(w,"Pidgin",0);
 	
 	if((names[mn]=getname_utf8(w,&namel[mn]))) return 1;
 	return 0;
@@ -147,10 +153,31 @@ void update() {
 void draw() {
 	int i,y=16;
 	for(i=0;i<mn;i++) {
-		text(8,y,names[i],namel[i]);
+		if(is_pidgin[i]) {
+			textpidgin(8,y,names[i],namel[i]);
+		} else {
+			text(8,y,names[i],namel[i]);
+		}
 		y+=16;
 	}
 	xcb_flush(c);
+}
+
+void show(xcb_window_t w) {
+        printf("switching to (0x%x)\n",w);
+        uint32_t v[1]={XCB_STACK_MODE_ABOVE};
+        xcb_configure_window(c,w,XCB_CONFIG_WINDOW_STACK_MODE,v);
+	xcb_warp_pointer (c,XCB_WINDOW_NONE,w,0,0,0,0,10,10);
+        xcb_set_input_focus(c,XCB_INPUT_FOCUS_PARENT,w,XCB_CURRENT_TIME);
+        xcb_aux_sync(c);
+
+}
+
+void button(xcb_generic_event_t *e0) {
+        xcb_button_press_event_t *e=(xcb_button_press_event_t*)e0;
+	int no=(e->event_y/16);
+	printf("e->y %u, no %u\n",e->event_y,no);
+	if(no<mn) { show(m[no]); }
 }
  
 int main(void)
@@ -168,8 +195,12 @@ int main(void)
 	uint32_t gv[]={s->black_pixel,s->white_pixel,font,0};
 	xcb_create_gc(c,g,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv);
 
+	pg = xcb_generate_id(c);
+	uint32_t gv2[]={0x6666ff,s->white_pixel,font,0};
+	xcb_create_gc(c,pg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv2);
+
 	w = xcb_generate_id(c);
-	uint32_t mv[]={s->white_pixel,XCB_EVENT_MASK_EXPOSURE};
+	uint32_t mv[]={s->white_pixel,XCB_EVENT_MASK_EXPOSURE|XCB_EVENT_MASK_BUTTON_PRESS};
 	xcb_create_window(c,s->root_depth,w,s->root,
 		    10,10,100,100,1,XCB_WINDOW_CLASS_INPUT_OUTPUT,s->root_visual,
 		    XCB_CW_BACK_PIXEL|XCB_CW_EVENT_MASK,mv);
@@ -191,6 +222,7 @@ int main(void)
 			draw();
 			break;
 		case XCB_PROPERTY_NOTIFY: update(); break;
+		case XCB_BUTTON_PRESS: button(e); break;
 		}
 		free(e);
 	}

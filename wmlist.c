@@ -12,7 +12,7 @@
 xcb_connection_t    *c;
 xcb_screen_t        *s;
 xcb_window_t         w;
-xcb_gcontext_t       g,pg;
+xcb_gcontext_t       g,pg,bg,bpg;
 
 void text(int x,int y,xcb_char2b_t *t,int n) {
 	xcb_image_text_16(c,n,w,g,x,y,t);
@@ -100,6 +100,8 @@ xcb_char2b_t *getname_utf8(xcb_window_t w, int *rn) {
 }
 
 int makename(xcb_window_t w) {
+	is_pidgin[mn]=is_classname(w,"Pidgin",0);
+
 	if(is_classname(w,"Firefox",0)) {
 		namel[mn]=7;
 		names[mn]=utf8dup("firefox",&namel[mn]);
@@ -113,7 +115,6 @@ int makename(xcb_window_t w) {
 	if(is_classname(w,"wmlist",0)) {
 		return 0;
 	}
-	is_pidgin[mn]=is_classname(w,"Pidgin",0);
 	
 	if((names[mn]=getname_utf8(w,&namel[mn]))) return 1;
 	return 0;
@@ -151,14 +152,17 @@ void update() {
 }
 
 void draw() {
-	int i,y=16;
+	int i,y=18;
 	for(i=0;i<mn;i++) {
+                xcb_rectangle_t r={4,y-12,124,16};
 		if(is_pidgin[i]) {
+			xcb_poly_fill_rectangle (c,w,bpg,1,&r);
 			textpidgin(8,y,names[i],namel[i]);
 		} else {
+			xcb_poly_fill_rectangle (c,w,bg,1,&r);
 			text(8,y,names[i],namel[i]);
 		}
-		y+=16;
+		y+=18;
 	}
 	xcb_flush(c);
 }
@@ -175,7 +179,7 @@ void show(xcb_window_t w) {
 
 void button(xcb_generic_event_t *e0) {
         xcb_button_press_event_t *e=(xcb_button_press_event_t*)e0;
-	int no=(e->event_y/16);
+	int no=(e->event_y/18);
 	printf("e->y %u, no %u\n",e->event_y,no);
 	if(no<mn) { show(m[no]); }
 }
@@ -192,12 +196,20 @@ int main(void)
 	xcb_open_font(c,font,strlen(fontname),fontname);
 
 	g = xcb_generate_id(c);
-	uint32_t gv[]={s->black_pixel,s->white_pixel,font,0};
+	uint32_t gv[]={s->black_pixel,0xeeeeee,font,0};
 	xcb_create_gc(c,g,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv);
 
 	pg = xcb_generate_id(c);
-	uint32_t gv2[]={0x6666ff,s->white_pixel,font,0};
+	uint32_t gv2[]={0xffffff,0x6666ff,font,0};
 	xcb_create_gc(c,pg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv2);
+
+	bg = xcb_generate_id(c);
+	uint32_t gv3[]={0xeeeeee,0,font,0};
+	xcb_create_gc(c,bg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv3);
+
+	bpg = xcb_generate_id(c);
+	uint32_t gv4[]={0x6666ff,0,font,0};
+	xcb_create_gc(c,bpg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv4);
 
 	w = xcb_generate_id(c);
 	uint32_t mv[]={s->white_pixel,XCB_EVENT_MASK_EXPOSURE|XCB_EVENT_MASK_BUTTON_PRESS};

@@ -19,6 +19,9 @@ xcb_window_t m[1024];
 int wn=0;
 int wc=0;
 
+int firefox=0;
+int terminal=0;
+
 void system2(char *s)
 {
 	if (fork() == 0) {
@@ -196,6 +199,13 @@ void show(xcb_window_t w) {
 
 }
 
+void shortcut(xcb_window_t w) {
+	if(is_classname(w,"Firefox",0)) {
+		firefox=w;
+	} else if(is_classname(w,0,"gnome-terminal")) {
+		terminal=w;
+	}
+}
 
 void focus(xcb_generic_event_t *e0, int gain) {
 	xcb_focus_in_event_t *e=(xcb_focus_in_event_t*)e0;
@@ -231,6 +241,8 @@ void map_request(xcb_generic_event_t *e0) {
 		uint32_t b[]={1};
 		xcb_configure_window(c,e->window,XCB_CONFIG_WINDOW_BORDER_WIDTH,b);
 
+		shortcut(e->window);
+
 		xcb_map_window(c,e->window);
 		update_ewmh_list();
 	}
@@ -262,6 +274,12 @@ void key_press(xcb_generic_event_t *e0) {
 
 	if(k==XK_p) {
 		system2("dmenu_run&");
+	} else if(k==XK_1) {
+		printf("show terminal 0x%x\n",terminal);
+		show(terminal);
+	} else if(k==XK_2) {
+		printf("show firefox 0x%x\n",terminal);
+		show(firefox);
 	} else if(k==XK_Tab) {
 		if(!wn) return;
 		wc++; if(wc>=wn) {wc=0;}
@@ -295,9 +313,7 @@ void manage_existing() {
 		setnormal(wins[i]);
 		manage(wins[i]);
 		printf("remapped\n");
-
-
-
+		shortcut(wins[i]);
 		xcb_map_window(c,wins[i]);
 	}
 

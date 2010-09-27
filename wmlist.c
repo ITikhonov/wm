@@ -179,7 +179,7 @@ void show(xcb_window_t w) {
 
 void button(xcb_generic_event_t *e0) {
         xcb_button_press_event_t *e=(xcb_button_press_event_t*)e0;
-	int no=(e->event_y/18);
+	unsigned int no=((e->event_y-6)/18);
 	printf("e->y %u, no %u\n",e->event_y,no);
 	if(no<mn) { show(m[no]); }
 }
@@ -196,23 +196,23 @@ int main(void)
 	xcb_open_font(c,font,strlen(fontname),fontname);
 
 	g = xcb_generate_id(c);
-	uint32_t gv[]={s->black_pixel,0xeeeeee,font,0};
+	uint32_t gv[]={s->white_pixel,0x333333,font,0};
 	xcb_create_gc(c,g,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv);
 
 	pg = xcb_generate_id(c);
-	uint32_t gv2[]={0xffffff,0x6666ff,font,0};
+	uint32_t gv2[]={0x000000,0xbbbb00,font,0};
 	xcb_create_gc(c,pg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv2);
 
 	bg = xcb_generate_id(c);
-	uint32_t gv3[]={0xeeeeee,0,font,0};
+	uint32_t gv3[]={0x333333,0xffffff,font,0};
 	xcb_create_gc(c,bg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv3);
 
 	bpg = xcb_generate_id(c);
-	uint32_t gv4[]={0x6666ff,0,font,0};
+	uint32_t gv4[]={0xbbbb00,0xffffff,font,0};
 	xcb_create_gc(c,bpg,s->root,XCB_GC_FOREGROUND|XCB_GC_BACKGROUND|XCB_GC_FONT|XCB_GC_GRAPHICS_EXPOSURES,gv4);
 
 	w = xcb_generate_id(c);
-	uint32_t mv[]={s->white_pixel,XCB_EVENT_MASK_EXPOSURE|XCB_EVENT_MASK_BUTTON_PRESS};
+	uint32_t mv[]={s->black_pixel,XCB_EVENT_MASK_EXPOSURE|XCB_EVENT_MASK_BUTTON_PRESS};
 	xcb_create_window(c,s->root_depth,w,s->root,
 		    10,10,100,100,1,XCB_WINDOW_CLASS_INPUT_OUTPUT,s->root_visual,
 		    XCB_CW_BACK_PIXEL|XCB_CW_EVENT_MASK,mv);

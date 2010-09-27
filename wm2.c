@@ -263,13 +263,12 @@ void map_request(xcb_generic_event_t *e0) {
 	free(a);
 }
 
-void findpidgin() {
+int find(char *x, char *y) {
 	int i;
 	for(i=wn-1;i>=0;i--) {
-		if(is_classname(m[i],"Pidgin",0)) { pidgin=m[i]; return; }
+		if(is_classname(m[i],x,y)) { return m[i]; }
 	}
-	pidgin=XCB_WINDOW_NONE;
-	return;
+	return XCB_WINDOW_NONE;
 }
 
 void unmap_notify(xcb_generic_event_t *e0) {
@@ -277,9 +276,9 @@ void unmap_notify(xcb_generic_event_t *e0) {
 	xcb_unmap_notify_event_t *e=(xcb_unmap_notify_event_t*)e0;
 	unmanage(e->window);
 	update_ewmh_list();
-	if(e->window==firefox) firefox=0;
-	if(e->window==terminal) terminal=0;
-	if(e->window==pidgin) { findpidgin(); if(pidgin) show(pidgin); }
+	if(e->window==firefox) { firefox=find("Firefox",0); }
+	if(e->window==terminal) { terminal=find(0,"gnome-terminal"); }
+	if(e->window==pidgin) { pidgin=find("Pidgin",0); }
 }
 
 void destroy_notify(xcb_generic_event_t *e0) {

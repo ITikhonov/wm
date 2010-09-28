@@ -230,7 +230,7 @@ void focus(xcb_generic_event_t *e0, int gain) {
 		uint32_t b[]={1};
 		xcb_configure_window(c,e->event,XCB_CONFIG_WINDOW_BORDER_WIDTH,b);
 	} else {
-		uint32_t color[]={0xffffffff};
+		uint32_t color[]={0x0};
 		xcb_change_window_attributes(c,e->event,XCB_CW_BORDER_PIXEL, color);
 		uint32_t b[]={1};
 		xcb_configure_window(c,e->event,XCB_CONFIG_WINDOW_BORDER_WIDTH,b);

@@ -23,6 +23,7 @@ int wsel=0;
 int firefox=0;
 int terminal=0;
 int pidgin=0;
+int fs=0;
 
 xcb_window_t getinputfocus() {
 	xcb_get_input_focus_cookie_t k=xcb_get_input_focus(c);
@@ -30,7 +31,6 @@ xcb_window_t getinputfocus() {
 	xcb_window_t w=r->focus;
 	free(r);
 	return w;
-
 }
 
 void system2(char *s)
@@ -224,6 +224,7 @@ void shortcut(xcb_window_t w) {
 void focus(xcb_generic_event_t *e0, int gain) {
 	xcb_focus_in_event_t *e=(xcb_focus_in_event_t*)e0;
 	printf("focus on 0x%x %s\n",e->event,gain?"given":"lost");
+	if(e->event==fs) return;
 	if(gain) {
 		uint32_t color[]={0xff00ff00};
 		xcb_change_window_attributes(c,e->event,XCB_CW_BORDER_PIXEL, color);
@@ -288,6 +289,16 @@ void destroy_notify(xcb_generic_event_t *e0) {
 	update_ewmh_list();
 }
 
+void fullscreen() {
+	if(fs) { resize(fs); fs=0; return; }
+
+	fs=getinputfocus();
+	uint32_t v[]={0,0,1600,900,0};
+	xcb_configure_window(c,fs,XCB_CONFIG_WINDOW_X|XCB_CONFIG_WINDOW_Y
+				|XCB_CONFIG_WINDOW_WIDTH|XCB_CONFIG_WINDOW_HEIGHT|XCB_CONFIG_WINDOW_BORDER_WIDTH,
+				v);
+	xcb_aux_sync(c);
+}
 
 void key_press(xcb_generic_event_t *e0) {
 	xcb_key_press_event_t *e=(xcb_key_press_event_t*)e0;
@@ -308,6 +319,8 @@ void key_press(xcb_generic_event_t *e0) {
 	} else if(k==XK_0) {
 		printf("show pidgin 0x%x\n",pidgin);
 		show(pidgin);
+	} else if(k==XK_f) {
+		fullscreen();
 	} else if(k==XK_Tab) {
 		show(wsel);
 		//if(!wn) return;

@@ -45,6 +45,7 @@ int utf8_to_ucs2(uint8_t *input, int l, xcb_char2b_t *buf, int m) {
 			p+=2;
 		} else {
 			printf("UNKNOWN CHARACTER\n");
+			break;
 		}
 	}
 	printf("len %lu %p %p\n",o-buf,o,buf);

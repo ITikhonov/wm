@@ -128,7 +128,9 @@ void update() {
         xcb_get_property_reply_t *reply = xcb_get_property_reply(c,cookie,NULL);
 
 	xcb_window_t *v=xcb_get_property_value(reply);
-	int n=xcb_get_property_value_length(reply);
+	int n=xcb_get_property_value_length(reply)/sizeof(xcb_window_t);
+
+	printf("total %u\n",n);
 
 	while(mn) {
 		mn--;

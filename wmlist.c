@@ -113,9 +113,8 @@ int makename(xcb_window_t w) {
 		names[mn]=utf8dup("terminal",&namel[mn]);
 		return 1;
 	}
-	if(is_classname(w,"wmlist",0)) {
-		return 0;
-	}
+	if(is_classname(w,"wmlist",0)) { return 0; }
+	if(is_classname(w,"iflist",0)) { return 0; }
 	
 	if((names[mn]=getname_utf8(w,&namel[mn]))) return 1;
 	return 0;

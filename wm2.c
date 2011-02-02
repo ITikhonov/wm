@@ -124,6 +124,9 @@ void better_size(xcb_window_t w,uint32_t sz[4]) {
 	} else if(is_classname(w,"wmlist",0)) {
 		sz[0]=64;
 		sz[2]=128;
+	} else if(is_classname(w,"iflist",0)) {
+		sz[1]=765+64;
+		sz[3]=60;
 	}
 }
 

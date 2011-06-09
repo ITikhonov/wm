@@ -19,6 +19,7 @@ xcb_window_t m[1024];
 int wn=0;
 int wc=0;
 int wsel=0;
+int wsel2=0;
 
 int firefox=0;
 int terminal=0;
@@ -312,7 +313,7 @@ void key_press(xcb_generic_event_t *e0) {
 	printf("key %x on %u managed\n",k,wn);
 
 	if(k==XK_p) {
-		system2("dmenu_run&");
+		system2("cd $HOME && dmenu_run&");
 	} else if(k==XK_1) {
 		printf("show terminal 0x%x\n",terminal);
 		show(terminal);
@@ -326,9 +327,6 @@ void key_press(xcb_generic_event_t *e0) {
 		fullscreen();
 	} else if(k==XK_Tab) {
 		show(wsel);
-		//if(!wn) return;
-		//wc++; if(wc>=wn) {wc=0;}
-		//show(m[wc]);
 	}
 }
 

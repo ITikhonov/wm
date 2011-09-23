@@ -122,6 +122,11 @@ void better_size(xcb_window_t w,uint32_t sz[4]) {
 	if(is_classname(w,"Pidgin",0)) {
 		sz[0]=1600-256;
 		sz[2]=256;
+	} else if(is_classname(w,"Blender",0)) {
+		sz[0]=0;
+		sz[1]=0;
+		sz[2]=1600;
+		sz[3]=900;
 	} else if(is_classname(w,"wmlist",0)) {
 		sz[0]=64;
 		sz[2]=128;
@@ -323,6 +328,8 @@ void key_press(xcb_generic_event_t *e0) {
 	} else if(k==XK_0) {
 		printf("show pidgin 0x%x\n",pidgin);
 		show(pidgin);
+	} else if(k==XK_3) {
+		show(find("wmlist",0));
 	} else if(k==XK_f) {
 		fullscreen();
 	} else if(k==XK_Tab) {

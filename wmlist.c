@@ -55,22 +55,22 @@ int utf8_to_ucs2(uint8_t *input, int l, xcb_char2b_t *buf, int m) {
 
 int is_classname(xcb_window_t w, char *class, char *name) {
         xcb_get_property_cookie_t cookie;
-        xcb_get_wm_class_reply_t ch;
-        cookie = xcb_get_wm_class_unchecked(c,w);
-        if(xcb_get_wm_class_reply(c,cookie,&ch,NULL)) {
+        xcb_icccm_get_wm_class_reply_t ch;
+        cookie = xcb_icccm_get_wm_class_unchecked(c,w);
+        if(xcb_icccm_get_wm_class_reply(c,cookie,&ch,NULL)) {
                 if(  (class && strcmp(class,ch.class_name)!=0)
                   || (name && strcmp(name,ch.instance_name)!=0)) {
-                        xcb_get_wm_class_reply_wipe(&ch);
+                        xcb_icccm_get_wm_class_reply_wipe(&ch);
                         return 0;
                 }
-                xcb_get_wm_class_reply_wipe(&ch);
+                xcb_icccm_get_wm_class_reply_wipe(&ch);
                 return 1;
         }
         return 0;
 }
 
 char *getname(xcb_window_t w) {
-        xcb_get_property_cookie_t cookie=xcb_get_property(c,0,w,WM_NAME,XCB_ATOM_STRING,0,256);
+        xcb_get_property_cookie_t cookie=xcb_get_property(c,0,w,XCB_ATOM_WM_NAME,XCB_ATOM_STRING,0,256);
 	xcb_get_property_reply_t *reply = xcb_get_property_reply(c,cookie,NULL);
 	if(reply) {
 		char *s=strndup(xcb_get_property_value(reply),xcb_get_property_value_length(reply));
@@ -84,6 +84,13 @@ xcb_char2b_t *utf8dup(char *s, int *n) {
 	xcb_char2b_t *u=malloc(*n*2);
 	*n=utf8_to_ucs2((uint8_t*)s,*n,u,*n*2);
 	return u;
+}
+
+static xcb_atom_t xcb_atom_get(xcb_connection_t *c,char *name) {
+        xcb_intern_atom_cookie_t cookie=xcb_intern_atom(c,0,strlen(name),name);
+        xcb_intern_atom_reply_t *reply=xcb_intern_atom_reply(c,cookie,NULL);
+        if(!reply) return XCB_NONE;
+        return reply->atom;
 }
 
 xcb_char2b_t *getname_utf8(xcb_window_t w, int *rn) {

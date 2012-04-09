@@ -10,6 +10,14 @@
 xcb_connection_t    *c;
 xcb_screen_t        *s;
 
+static xcb_atom_t xcb_atom_get(xcb_connection_t *c,char *name) {
+        xcb_intern_atom_cookie_t cookie=xcb_intern_atom(c,0,strlen(name),name);
+        xcb_intern_atom_reply_t *reply=xcb_intern_atom_reply(c,cookie,NULL);
+        if(!reply) return XCB_NONE;
+        return reply->atom;
+}
+
+
 int main(int argc, char *argv[])
 {
 	c = xcb_connect(NULL,NULL);

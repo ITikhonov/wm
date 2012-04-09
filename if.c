@@ -18,6 +18,14 @@ xcb_screen_t        *s;
 xcb_window_t         w;
 xcb_gcontext_t       g,bg;
 
+static xcb_atom_t xcb_atom_get(xcb_connection_t *c,char *name) {
+        xcb_intern_atom_cookie_t cookie=xcb_intern_atom(c,0,strlen(name),name);
+        xcb_intern_atom_reply_t *reply=xcb_intern_atom_reply(c,cookie,NULL);
+        if(!reply) return XCB_NONE;
+        return reply->atom;
+}
+
+
 void text(int x,int y,xcb_char2b_t *t,int n) {
 	xcb_image_text_16(c,n,w,g,x,y,t);
 }
@@ -25,7 +33,7 @@ void text(int x,int y,xcb_char2b_t *t,int n) {
 int utf8_to_ucs2(uint8_t *input, int l, xcb_char2b_t *buf, int m) {
 	uint8_t *p=(uint8_t *)input,*e=p+l;
 	xcb_char2b_t *o=buf;
-	while(p<e) {
+	while((p<e) && (o-buf)<m-1) {
 		if((*p&0x80)==0) {
 			o->byte1=0;
 			o->byte2=*p++;
@@ -38,8 +46,11 @@ int utf8_to_ucs2(uint8_t *input, int l, xcb_char2b_t *buf, int m) {
 			o++;
 			p+=2;
 		} else {
-			printf("UNKNOWN CHARACTER\n");
-			break;
+                        o->byte1=0;
+                        o->byte2='#';
+                        o->byte2='#';
+                        o++;
+			p+=3;
 		}
 	}
 	printf("len %lu %p %p\n",o-buf,o,buf);
@@ -66,6 +77,7 @@ void draw() {
 		uint8_t buf[256];
 		int fd=open(f->d_name,O_RDONLY); int n=read(fd,buf,256); close(fd);
 		if(n>0) {
+			printf("file %s\n",f->d_name);
 			xcb_char2b_t buf2[256];
 			text(8,i*18+12,buf2,utf8_to_ucs2(buf,n,buf2,256));
 		}

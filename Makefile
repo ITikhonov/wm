@@ -1,5 +1,5 @@
 CFLAGS=-Wall -g -Werror
-LDLIBS=-lxcb -lxcb-icccm -lxcb-aux -lxcb-keysyms
+LDLIBS=-lxcb -lxcb-icccm -lxcb-keysyms -lxcb-util
 
 all: wm wm2 wmlist if wmclose wmkeys
 

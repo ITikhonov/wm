@@ -57,15 +57,15 @@ int managed(xcb_window_t w) {
 
 int is_classname(xcb_window_t w, char *class, char *name) {
 	xcb_get_property_cookie_t cookie;
-	xcb_get_wm_class_reply_t ch;
-	cookie = xcb_get_wm_class_unchecked(c,w);
-        if(xcb_get_wm_class_reply(c,cookie,&ch,NULL)) {
+	xcb_icccm_get_wm_class_reply_t ch;
+	cookie = xcb_icccm_get_wm_class_unchecked(c,w);
+        if(xcb_icccm_get_wm_class_reply(c,cookie,&ch,NULL)) {
 		if(  (class && strcmp(class,ch.class_name)!=0)
 		  || (name && strcmp(name,ch.instance_name)!=0)) {
-			xcb_get_wm_class_reply_wipe(&ch);
+			xcb_icccm_get_wm_class_reply_wipe(&ch);
 			return 0;
 		}
-		xcb_get_wm_class_reply_wipe(&ch);
+		xcb_icccm_get_wm_class_reply_wipe(&ch);
 		return 1;
 	}
 	return 0;
@@ -73,21 +73,21 @@ int is_classname(xcb_window_t w, char *class, char *name) {
 
 void classname(xcb_window_t w) {
 	xcb_get_property_cookie_t cookie;
-	xcb_get_wm_class_reply_t ch;
-	cookie = xcb_get_wm_class_unchecked(c,w);
-        if(xcb_get_wm_class_reply(c,cookie,&ch,NULL)) {
+	xcb_icccm_get_wm_class_reply_t ch;
+	cookie = xcb_icccm_get_wm_class_unchecked(c,w);
+        if(xcb_icccm_get_wm_class_reply(c,cookie,&ch,NULL)) {
 		printf("%x %s %s\n",w,ch.class_name,ch.instance_name);
-		xcb_get_wm_class_reply_wipe(&ch);
+		xcb_icccm_get_wm_class_reply_wipe(&ch);
 	}
 }
 
 void printclassname(xcb_window_t w) {
 	xcb_get_property_cookie_t cookie;
-	xcb_get_wm_class_reply_t ch;
-	cookie = xcb_get_wm_class_unchecked(c,w);
-        if(xcb_get_wm_class_reply(c,cookie,&ch,NULL)) {
+	xcb_icccm_get_wm_class_reply_t ch;
+	cookie = xcb_icccm_get_wm_class_unchecked(c,w);
+        if(xcb_icccm_get_wm_class_reply(c,cookie,&ch,NULL)) {
 		printf("%x %s %s\n",w,ch.class_name,ch.instance_name);
-		xcb_get_wm_class_reply_wipe(&ch);
+		xcb_icccm_get_wm_class_reply_wipe(&ch);
 	}
 }
 
@@ -111,8 +111,15 @@ void unmanage(xcb_window_t w) {
 	printf("unmanaging %u ",i); printclassname(w);
 }
 
+static xcb_atom_t xcb_atom_get(xcb_connection_t *c,char *name) {
+	xcb_intern_atom_cookie_t cookie=xcb_intern_atom(c,0,strlen(name),name);
+	xcb_intern_atom_reply_t *reply=xcb_intern_atom_reply(c,cookie,NULL);
+	if(!reply) return XCB_NONE;
+	return reply->atom;
+}
+
 void setnormal(xcb_window_t w) {
-	uint32_t data[] = {XCB_WM_STATE_NORMAL, XCB_NONE};
+	uint32_t data[] = {XCB_ICCCM_WM_STATE_NORMAL, XCB_NONE};
 	xcb_change_property(c,XCB_PROP_MODE_REPLACE,w,
 			xcb_atom_get(c, "WM_STATE"),xcb_atom_get(c, "WM_STATE"), 
                         32, 2, data);
@@ -125,7 +132,7 @@ void better_size(xcb_window_t w,uint32_t sz[4]) {
 	} else if(is_classname(w,"Blender",0)) {
 		sz[0]=0;
 		sz[1]=0;
-		sz[2]=1600;
+		sz[2]=1600-256;
 		sz[3]=900;
 	} else if(is_classname(w,"wmlist",0)) {
 		sz[0]=64;
@@ -186,7 +193,7 @@ int is_transient(xcb_window_t w) {
 	}
 
 	xcb_window_t t=0;
-	xcb_get_wm_transient_for_reply(c,xcb_get_wm_transient_for(c,w),&t,NULL);
+	xcb_icccm_get_wm_transient_for_reply(c,xcb_icccm_get_wm_transient_for(c,w),&t,NULL);
 	return t;
 }
 
@@ -373,6 +380,7 @@ void manage_existing() {
 	update_ewmh_list();
 }
 
+#if 0
 #define ERRORS_NBR              256
 static xcb_event_handlers_t evenths;
 
@@ -396,7 +404,7 @@ xerror(void *data, xcb_connection_t *c, xcb_generic_error_t *e)
 		 xcb_event_get_error_label(e->error_code));
 	return 0;
 }
-
+#endif
 
 
 int main() {
@@ -409,7 +417,7 @@ int main() {
 	xcb_grab_key (c,1,s->root,XCB_MOD_MASK_4,XCB_GRAB_ANY,XCB_GRAB_MODE_ASYNC,XCB_GRAB_MODE_ASYNC);
 	xcb_flush(c);
 
-	xutil_error_handler_catch_all_set(&evenths, xerror, NULL);
+	//xutil_error_handler_catch_all_set(&evenths, xerror, NULL);
 	xcb_aux_sync(c);
 
 	manage_existing();

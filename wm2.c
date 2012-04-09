@@ -321,6 +321,7 @@ void key_press(xcb_generic_event_t *e0) {
 	
 	xcb_key_symbols_t *sm=xcb_key_symbols_alloc(c);
 	xcb_keysym_t k=xcb_key_press_lookup_keysym (sm,e,0);
+	xcb_key_symbols_free(sm);
 
 	printf("key %x on %u managed\n",k,wn);
 
